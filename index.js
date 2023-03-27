@@ -22,13 +22,18 @@
 
 const langcode = require('./langcode');
 const request = require('request');
+const environment = process.env.NODE_ENV || 'development';
 
-require('dotenv').config();
+if (environment === 'development') {
+  require('dotenv-yaml').config({ path: './.env.dev.yaml' });
+}
 
 const oauthToken = process.env.SLACK_AUTH_TOKEN;
 const google_api_key = process.env.GOOGLE_KEY;
 const project_id = process.env.PROJECT_ID;
 const apiUrl = 'https://slack.com/api';
+const deepLApiUrl = 'https://api-free.deepl.com/v2/translate'
+const deepLApiKey = process.env.DEEPL_API_KEY;
 
 let credentials = {
   projectId: project_id,
@@ -155,12 +160,32 @@ const getMessage = (ch, ts) => new Promise((resolve, reject) => {
   });
 });
 
+const littleFlagMap = {
+
+}
+
 function postTranslatedMessage(message, lang, channel, emoji) {
   // Google Translate
-  translate.translate(message.text, lang).then(([translation]) => {
+  /* translate.translate(message.text, lang).then(([translation]) => {
     postMessage(message, translation, channel, emoji);
   }).catch(e => {
     console.error(e);
+  });  */
+
+  // DeepL Translate
+  request({
+    method: 'POST',
+    uri: deepLApiUrl,
+    headers: {'Authorization': 'DeepL-Auth-Key ' + deepLApiKey},
+    form: {
+      text: message.text,
+      target_lang: lang
+    }
+    }, (error, response, sbody) => {
+    let data = response.toJSON();
+    let { translations } = JSON.parse(data.body);
+    console.log(translations)
+    postMessage(message, translations[0].text, channel, emoji);
   });
 }
 
